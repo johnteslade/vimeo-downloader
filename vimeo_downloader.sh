@@ -30,15 +30,18 @@ if [ $# -ne 1 ]; then
 fi
 VIMEO_ID=`echo $1 | awk -F / '{print $NF}'`
 
+# Set the user agent ID to use
+USER_AGENT="Mozilla/5.0"
+
 which wget
 if [ $? -eq 0 ]; then
 	echo "Using wget..."
-	GET_CMD="wget -O -"
+	GET_CMD="wget -U \"${USER_AGENT}\" -O -"
 else
 	which curl
 	if [ $? -eq 0 ]; then
 		echo "Using curl..."
-		GET_CMD="curl -L"
+		GET_CMD="curl -L -A ${USER_AGENT} "
 	else
 		echo "Could not find wget or curl"
 		exit 2
@@ -89,8 +92,10 @@ echo "Downloading video ${VIMEO_ID} to ${FILENAME}..."
 echo "Request_signature=${REQUEST_SIGNATURE}"
 echo "Request_signature_expires=${REQUEST_SIGNATURE_EXPIRES}"
 echo 
-	
-${GET_CMD} "http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=hd&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" > "${FILENAME}"
+
+EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=hd&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
+echo "Executing ${EXEC_CMD}"
+${EXEC_CMD} > "${FILENAME}"
 
 echo
 echo "Video ${VIMEO_ID} saved to ${FILENAME}"
