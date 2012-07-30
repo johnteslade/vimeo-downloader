@@ -63,13 +63,7 @@ if [ $USING_PERL -eq 1 ]; then
 	REQUEST_SIGNATURE=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
 	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
 	CAPTION=`echo $VIDEO_XML | perl -p -e 's:^.*?\<caption\>(.*?)\</caption\>.*$:$1:g'`
-	ISHD=`echo $VIDEO_XML |  perl -p -e 's:^.*?\<isHD\>(.*?)\</isHD\>.*$:$1:g'`
-
-	if [ ${ISHD} -eq 1 ]; then
-		ISHD="hd"
-	else
-		ISHD="sd"
-	fi
+	QUALITY=`echo $VIDEO_XML | perl -p -e 's:^.*?\<meta itemprop="videoQuality" content="(.*?)">.*$:$1:g' | tr '[A-Z]' '[a-z]'`
 
 	# caption can contain bad characters (like '/') so don't use it for now
 	#FILENAME="${CAPTION}-(${ISHD}${VIMEO_ID}).flv"
@@ -91,9 +85,10 @@ echo
 echo "Downloading video ${VIMEO_ID} to ${FILENAME}..."
 echo "Request_signature=${REQUEST_SIGNATURE}"
 echo "Request_signature_expires=${REQUEST_SIGNATURE_EXPIRES}"
+echo "Quality=${QUALITY}"
 echo 
 
-EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=hd&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
+EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=${QUALITY}&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
 echo "Executing ${EXEC_CMD}"
 ${EXEC_CMD} > "${FILENAME}"
 
