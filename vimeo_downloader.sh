@@ -62,13 +62,10 @@ VIDEO_XML=`${GET_CMD} http://vimeo.com/${VIMEO_ID}`
 if [ $USING_PERL -eq 1 ]; then
 	REQUEST_SIGNATURE=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
 	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
-	CAPTION=`echo $VIDEO_XML | perl -p -e 's:^.*?\<caption\>(.*?)\</caption\>.*$:$1:g'`
-	QUALITY=`echo $VIDEO_XML | perl -p -e 's:^.*?\<meta itemprop="videoQuality" content="(.*?)">.*$:$1:g' | tr '[A-Z]' '[a-z]'`
+	CAPTION=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta property="og:title" content="(.*?)"\>.*$/; $_=$1; s/[^\w.]/-/g;'`
+	ISHD=`echo $VIDEO_XML |    perl -p -e '/^.*?\<meta itemprop="videoQuality" content="(HD)"\>.*$/; $_=lc($1)||"sd";'`
 
-	# caption can contain bad characters (like '/') so don't use it for now
-	#FILENAME="${CAPTION}-(${ISHD}${VIMEO_ID}).flv"
-
-	FILENAME="${VIMEO_ID}-${ISHD}.flv"
+	FILENAME="${CAPTION}-(${ISHD}-${VIMEO_ID}).flv"
 else
 
 	# TODO update the sed code to work with the new site format
@@ -88,7 +85,7 @@ echo "Request_signature_expires=${REQUEST_SIGNATURE_EXPIRES}"
 echo "Quality=${QUALITY}"
 echo 
 
-EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=${QUALITY}&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
+EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=${ISHD}&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
 echo "Executing ${EXEC_CMD}"
 ${EXEC_CMD} > "${FILENAME}"
 
