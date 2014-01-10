@@ -36,7 +36,7 @@ USER_AGENT="Mozilla/5.0"
 which wget
 if [ $? -eq 0 ]; then
 	echo "Using wget..."
-	GET_CMD="wget -U \"${USER_AGENT}\" -O -"
+	GET_CMD="wget -U \"${USER_AGENT}\" -O"
 else
 	which curl
 	if [ $? -eq 0 ]; then
@@ -57,13 +57,26 @@ else
 	USING_PERL=0
 fi
 
-VIDEO_XML=`${GET_CMD} http://vimeo.com/${VIMEO_ID}`
+VIDEO_XML=`${GET_CMD} - http://vimeo.com/${VIMEO_ID}`
+
+CONFIG_URL=`echo $VIDEO_XML | grep data-config-url | perl -p -e 's/^.*? data-config-url="(.*?)".*$/$1/g' | perl -pe 's/&amp;/&/g'`
+echo "Look for config at $CONFIG_URL"
+
+VIDEO_CONFIG=`${GET_CMD} - ${CONFIG_URL}`
+
+HD_URL=`echo $VIDEO_CONFIG | perl -pe 's/^.*"hd":{(.*?)}.*$/$1/g' | perl -pe 's/^.*"url":"(.*?)".*$/$1/g'`
+SD_URL=`echo $VIDEO_CONFIG | perl -pe 's/^.*"sd":{(.*?)}.*$/$1/g' | perl -pe 's/^.*"url":"(.*?)".*$/$1/g'`
+
+echo HD $HD_URL
+echo SD $SD_URL
+
+exit
 
 if [ $USING_PERL -eq 1 ]; then
-	REQUEST_SIGNATURE=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
-	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_XML | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
+	REQUEST_SIGNATURE=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
+	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
 	CAPTION=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta property="og:title" content="(.*?)"\>.*$/; $_=$1; s/[^\w.]/-/g;'`
-	ISHD=`echo $VIDEO_XML |    perl -p -e '/^.*?\<meta itemprop="videoQuality" content="(HD)"\>.*$/; $_=lc($1)||"sd";'`
+	ISHD=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta itemprop="videoQuality" content="(HD)"\>.*$/; $_=lc($1)||"sd";'`
 
 	FILENAME="${CAPTION}-(${ISHD}-${VIMEO_ID}).flv"
 else
@@ -85,7 +98,8 @@ echo "Request_signature_expires=${REQUEST_SIGNATURE_EXPIRES}"
 echo "Quality=${QUALITY}"
 echo 
 
-EXEC_CMD="${GET_CMD} http://player.vimeo.com/play_redirect?clip_id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=${ISHD}&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=" 
+EXEC_CMD="${GET_CMD} --post-data 'id=${VIMEO_ID}&sig=${REQUEST_SIGNATURE}&time=${REQUEST_SIGNATURE_EXPIRES}&quality=${ISHD}&codecs=H264,VP8,VP6&type=moogaloop_local&embed_location=' http://player.vimeo.com/v2/log/play" 
+EXEC_CMD="${GET_CMD} --post-data 'referrer=http%3A%2F%2Fvimeo.com%2F1084537&embed=false&context=clip.main&id=1084537&userId=0&userAccountType=none&ownerId=508904&privacy=anybody&rating=null&type=html&videoFileId=24130451&delivery=progressive&quality=hd&duration=596&seconds=0&signature=bba9539b684b68a669df61672fdaa620&session=b33ffe835f53dff6f965d079b45c57e2&time=1389393290&expires=1496' - http://player.vimeo.com/v2/log/play" 
 echo "Executing ${EXEC_CMD}"
 ${EXEC_CMD} > "${FILENAME}"
 
