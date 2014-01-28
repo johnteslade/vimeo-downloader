@@ -34,28 +34,18 @@ VIMEO_ID=`echo $1 | awk -F / '{print $NF}'`
 USER_AGENT="Mozilla/5.0"
 
 which wget
-if [ $? -eq 0 ]; then
-	echo "Using wget..."
-	GET_CMD="wget -U \"${USER_AGENT}\" -O"
-else
-	which curl
-	if [ $? -eq 0 ]; then
-		echo "Using curl..."
-		GET_CMD="curl -L -A ${USER_AGENT} "
-	else
-		echo "Could not find wget or curl"
-		exit 2
-	fi
+if [ $? -eq 1 ]; then
+	echo "ERROR: this tool requires wget on the path"
+	exit 1
 fi
 
 which perl
-if [ $? -eq 0 ]; then
-	echo "Using perl..."
-	USING_PERL=1
-else
-	echo "Using sed..."
-	USING_PERL=0
+if [ $? -eq 1 ]; then
+	echo "ERROR: this tool requires perl on the path"
+	exit 1
 fi
+
+GET_CMD="wget -U \"${USER_AGENT}\" -O"
 
 VIDEO_XML=`${GET_CMD} - http://vimeo.com/${VIMEO_ID}`
 
@@ -72,24 +62,12 @@ echo SD $SD_URL
 
 exit
 
-if [ $USING_PERL -eq 1 ]; then
-	REQUEST_SIGNATURE=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
-	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
-	CAPTION=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta property="og:title" content="(.*?)"\>.*$/; $_=$1; s/[^\w.]/-/g;'`
-	ISHD=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta itemprop="videoQuality" content="(HD)"\>.*$/; $_=lc($1)||"sd";'`
+REQUEST_SIGNATURE=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"signature":"(.*?)"/i ){ print "$1\n"; }'`
+REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_CONFIG | perl -e '@text_in = <STDIN>; if (join(" ", @text_in) =~ /"timestamp":(\d*?),/i ){ print "$1\n"; }'`
+CAPTION=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta property="og:title" content="(.*?)"\>.*$/; $_=$1; s/[^\w.]/-/g;'`
+ISHD=`echo $VIDEO_XML | perl -p -e '/^.*?\<meta itemprop="videoQuality" content="(HD)"\>.*$/; $_=lc($1)||"sd";'`
 
-	FILENAME="${CAPTION}-(${ISHD}-${VIMEO_ID}).flv"
-else
-
-	# TODO update the sed code to work with the new site format
-	echo "This version requires perl - exiting"
-	exit 2
-	
-	REQUEST_SIGNATURE=`echo $VIDEO_XML | sed -e 's/^.*<request_signature>\([^<]*\)<.*$/\1/g'`
-	REQUEST_SIGNATURE_EXPIRES=`echo $VIDEO_XML | sed -e 's/^.*<request_signature_expires>\([^<]*\)<.*$/\1/g'`
-	ISHD="sd"
-	FILENAME=${VIMEO_ID}.flv
-fi
+FILENAME="${CAPTION}-(${ISHD}-${VIMEO_ID}).flv"
 
 echo
 echo "Downloading video ${VIMEO_ID} to ${FILENAME}..."
